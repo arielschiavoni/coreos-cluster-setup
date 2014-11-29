@@ -1,0 +1,62 @@
+#cloud-config
+coreos:
+  etcd:
+    # generate new discovery url with https://discovery.etcd.io/new
+    discovery: https://discovery.etcd.io/<token>
+    addr: $private_ipv4:4001
+    peer-addr: $private_ipv4:7001
+  fleet:
+    public-ip: $private_ipv4
+    # custom metadata to show when execute `fleetctl list-units`
+    metadata: region=europe,public_ip=$public_ipv4
+  units:
+    - name: etcd.service
+      command: start
+    - name: fleet.service
+      command: start
+    - name: systemd-sysctl.service
+      command: restart
+    # create swap service to add 2GB swap to CoreOS (by default there is no swap)
+    - name: create-swap.service
+      command: start
+      runtime: true
+      content: |
+        [Unit]
+        Description=Create swap file
+        Before=swap.service
+
+        [Service]
+        Type=oneshot
+        Environment="SWAPFILE=/2GiB.swap"
+        ExecStart=/usr/bin/touch ${SWAPFILE}
+        ExecStart=/usr/bin/chattr +C ${SWAPFILE}
+        ExecStart=/usr/bin/fallocate -l 2048m ${SWAPFILE}
+        ExecStart=/usr/bin/chmod 600 ${SWAPFILE}
+        ExecStart=/usr/sbin/mkswap ${SWAPFILE}
+
+        [Install]
+        WantedBy=multi-user.target
+    - name: swap.service
+      command: start
+      content: |
+        [Unit]
+        Description=Turn on swap
+
+        [Service]
+        Type=oneshot
+        Environment="SWAPFILE=/2GiB.swap"
+        RemainAfterExit=true
+        ExecStartPre=/usr/sbin/losetup -f ${SWAPFILE}
+        ExecStart=/usr/bin/sh -c "/sbin/swapon $(/usr/sbin/losetup -j ${SWAPFILE} | /usr/bin/cut -d : -f 1)"
+        ExecStop=/usr/bin/sh -c "/sbin/swapoff $(/usr/sbin/losetup -j ${SWAPFILE} | /usr/bin/cut -d : -f 1)"
+        ExecStopPost=/usr/bin/sh -c "/usr/sbin/losetup -d $(/usr/sbin/losetup -j ${SWAPFILE} | /usr/bin/cut -d : -f 1)"
+
+        [Install]
+        WantedBy=multi-user.target
+write_files:
+  - path: /etc/sysctl.d/swap.conf
+    permissions: 0644
+    owner: root
+    content: |
+      vm.swappiness=10
+      vm.vfs_cache_pressure=50
