@@ -1,0 +1,11 @@
+inspect_addr: 0.0.0.0:9999
+auth_token: YOUR_NGROK_TOKEN
+tunnels:
+  frontendside:
+    subdomain: "frontendside"
+    proto:
+      http: 8080
+  ci:
+    subdomain: "ci.frontendside"
+    proto:
+      http: 8080

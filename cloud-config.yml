@@ -2,7 +2,7 @@
 coreos:
   etcd:
     # generate new discovery url with https://discovery.etcd.io/new
-    discovery: https://discovery.etcd.io/<token>
+    discovery: https://discovery.etcd.io/bf2031e9056388bbb554086d64b49d01
     addr: $private_ipv4:4001
     peer-addr: $private_ipv4:7001
   fleet:
